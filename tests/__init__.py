@@ -1,1 +1,1 @@
-"""Tests for py2gui."""
+"""Tests for mkgui."""

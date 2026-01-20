@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for py2gui tests."""
+"""Shared pytest fixtures for mkgui tests."""
 
 import tempfile
 from pathlib import Path

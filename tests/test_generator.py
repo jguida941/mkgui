@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from py2gui.generator import (
+from mkgui.generator import (
     GeneratorConfig,
     GeneratorResult,
     ScaffoldMode,
@@ -17,7 +17,7 @@ from py2gui.generator import (
     _write_spec_json,
     generate_project,
 )
-from py2gui.models import (
+from mkgui.models import (
     ActionKind,
     ActionSpec,
     AnalysisResult,
@@ -46,7 +46,7 @@ class TestGeneratorConfig:
         assert config.scaffold_mode == ScaffoldMode.THIN
         assert config.source_mode == SourceMode.IMPORT
         assert config.create_overrides is True
-        assert config.runtime_package == "py2gui_runtime"
+        assert config.runtime_package == "mkgui_runtime"
 
     def test_custom_values(self, tmp_path):
         """Should accept custom values."""

@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from py2gui.models import (
+from mkgui.models import (
     ActionKind,
     ActionSpec,
     AnalysisMode,

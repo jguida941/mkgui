@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "py2gui"
+name = "mkgui"
 version = "0.1.0"
 description = "Transform Python code into PyQt6 GUI applications automatically"
 readme = "README.md"
@@ -43,13 +43,13 @@ dev = [
 ]
 
 [project.scripts]
-mkgui = "py2gui.cli:app"
+mkgui = "mkgui.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-py2gui = ["templates/**/*"]
+mkgui = ["templates/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -60,7 +60,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["src/py2gui"]
+source = ["src/mkgui"]
 branch = true
 omit = ["*/tests/*"]
 
@@ -74,6 +74,6 @@ fail_under = 90
 show_missing = true
 
 [tool.mutmut]
-paths_to_mutate = "src/py2gui/"
+paths_to_mutate = "src/mkgui/"
 tests_dir = "tests/"
 runner = "python -m pytest -x --tb=no -q"

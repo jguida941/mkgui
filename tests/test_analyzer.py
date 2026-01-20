@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from py2gui.analyzer import (
+from mkgui.analyzer import (
     ASTAnalyzer,
     ENTRYPOINT_NAMES,
     IGNORE_DIR_PATTERNS,
@@ -13,7 +13,7 @@ from py2gui.analyzer import (
     _matches_pattern,
     analyze_project,
 )
-from py2gui.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind
+from mkgui.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind
 
 
 class TestMatchesPattern:

@@ -1,4 +1,4 @@
-"""Property-based tests using Hypothesis for py2gui."""
+"""Property-based tests using Hypothesis for mkgui."""
 
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given, settings, assume, example
 from hypothesis import strategies as st
 
-from py2gui.inspector import (
+from mkgui.inspector import (
     TypeCategory,
     TypeInfo,
     _convert_bool,
@@ -20,7 +20,7 @@ from py2gui.inspector import (
     convert_value,
     parse_type_annotation,
 )
-from py2gui.models import (
+from mkgui.models import (
     ActionKind,
     ActionSpec,
     AnalysisMode,

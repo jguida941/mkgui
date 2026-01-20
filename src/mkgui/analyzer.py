@@ -12,6 +12,7 @@ import fnmatch
 import hashlib
 from pathlib import Path
 
+from . import __version__
 from .models import (
     ActionKind,
     ActionSpec,
@@ -71,7 +72,7 @@ class ASTAnalyzer:
         if self.project_root.is_file():
             # Single file analysis
             # Note: Ignore patterns are NOT applied to explicitly specified files.
-            # If a user runs `pyqt6-wrap tests/foo.py`, they want that file analyzed.
+            # If a user runs `mkgui analyze tests/foo.py`, they want that file analyzed.
             # Ignore patterns only apply during directory scanning.
             if self.project_root.suffix == ".py":
                 module = self._analyze_file(self.project_root)
@@ -92,6 +93,7 @@ class ASTAnalyzer:
             analysis_mode=self.analysis_mode,
             modules=modules,
             warnings=self.warnings,
+            generator_version=__version__,
         )
 
     def _find_python_files(self) -> list[Path]:

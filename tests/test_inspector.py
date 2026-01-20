@@ -2,7 +2,7 @@
 
 import pytest
 
-from py2gui.inspector import (
+from mkgui.inspector import (
     ConversionError,
     ConversionResult,
     TypeCategory,
@@ -23,7 +23,7 @@ from py2gui.inspector import (
     inspect_parameters,
     parse_type_annotation,
 )
-from py2gui.models import Annotation, ParamSpec, ParamUI, ParamValidation, WidgetType
+from mkgui.models import Annotation, ParamSpec, ParamUI, ParamValidation, WidgetType
 
 
 class TestParseBasicTypes:

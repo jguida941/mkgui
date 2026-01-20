@@ -1,4 +1,4 @@
-"""Snapshot/regression tests using syrupy for py2gui.
+"""Snapshot/regression tests using syrupy for mkgui.
 
 These tests capture the output of analysis operations and compare against
 stored snapshots. If the output changes, the test fails, alerting us to
@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from py2gui.analyzer import analyze_project
-from py2gui.inspector import parse_type_annotation, inspect_parameters
-from py2gui.models import Annotation, ParamSpec
+from mkgui.analyzer import analyze_project
+from mkgui.inspector import parse_type_annotation, inspect_parameters
+from mkgui.models import Annotation, ParamSpec
 
 
 class TestAnalyzerSnapshots:

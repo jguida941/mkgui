@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from py2gui.cli import _parse_analysis_mode, _print_analysis_result, app
-from py2gui.models import AnalysisMode, AnalysisResult, ModuleSpec, ActionSpec, ActionKind
+from mkgui.cli import _parse_analysis_mode, _print_analysis_result, app
+from mkgui.models import AnalysisMode, AnalysisResult, ModuleSpec, ActionSpec, ActionKind
 
 
 runner = CliRunner()
@@ -290,7 +290,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_warnings(self, capsys):
         """Should display warnings."""
-        from py2gui.models import Warning as AnalysisWarning
+        from mkgui.models import Warning as AnalysisWarning
         # Need a module to have content, otherwise it shows "No modules" and exits early
         action = ActionSpec(
             action_id="test.func:123",
@@ -366,7 +366,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_docstring(self, capsys):
         """Should display first line of docstring."""
-        from py2gui.models import DocSpec
+        from mkgui.models import DocSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,
@@ -391,7 +391,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_parameters(self, capsys):
         """Should display parameter names."""
-        from py2gui.models import ParamSpec
+        from mkgui.models import ParamSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,
@@ -420,7 +420,7 @@ class TestPrintAnalysisResult:
 
     def test_result_truncates_many_parameters(self, capsys):
         """Should truncate display when many parameters."""
-        from py2gui.models import ParamSpec
+        from mkgui.models import ParamSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,
