@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyqt6-boilerplate-gen"
+version = "0.1.0"
+description = "A smart CLI tool that scaffolds PyQt6 applications through multiple modes: analyze, wizard, and spec file"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Code Generators",
+    "Framework :: Pytest",
+]
+keywords = ["pyqt6", "qt", "gui", "boilerplate", "generator", "cli", "scaffold"]
+dependencies = [
+    "typer>=0.9.0,<0.16.0",
+    "click>=8.0.0,<8.2.0",
+    "rich>=13.0.0",
+    "questionary>=2.0.0",
+    "jinja2>=3.1.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "hypothesis>=6.100.0",
+    "pytest-regressions>=2.5.0",
+    "syrupy>=4.0.0",
+    "mutmut>=3.0.0",
+]
+
+[project.scripts]
+pyqt6-gen = "pyqt6_gen.cli:app"
+pyqt6-wrap = "pyqt6_gen.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pyqt6_gen = ["templates/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src/pyqt6_gen"]
+branch = true
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+fail_under = 90
+show_missing = true
+
+[tool.mutmut]
+paths_to_mutate = "src/pyqt6_gen/"
+tests_dir = "tests/"
+runner = "python -m pytest -x --tb=no -q"

@@ -1,0 +1,364 @@
+# serializer version: 1
+# name: TestAnalysisResultSnapshots.test_multi_file_project
+  dict({
+    'module_count': 2,
+    'modules': list([
+      dict({
+        'action_count': 2,
+        'actions': list([
+          'process',
+          'validate',
+        ]),
+        'id': 'mypackage.core',
+      }),
+      dict({
+        'action_count': 2,
+        'actions': list([
+          'format_name',
+          'parse_csv',
+        ]),
+        'id': 'mypackage.utils',
+      }),
+    ]),
+  })
+# ---
+# name: TestAnalysisResultSnapshots.test_project_with_all_exports
+  dict({
+    'all_exports': list([
+      'public_func',
+      'PublicClass',
+    ]),
+    'detected_actions': list([
+      'method',
+      'public_func',
+    ]),
+  })
+# ---
+# name: TestAnalyzerSnapshots.test_class_methods_analysis
+  dict({
+    'actions': list([
+      dict({
+        'kind': 'staticmethod',
+        'name': 'add',
+        'param_count': 2,
+        'qualname': '.Calculator.add',
+      }),
+      dict({
+        'kind': 'classmethod',
+        'name': 'create',
+        'param_count': 1,
+        'qualname': '.Calculator.create',
+      }),
+    ]),
+    'module_count': 1,
+  })
+# ---
+# name: TestAnalyzerSnapshots.test_cli_decorators_analysis
+  dict({
+    'actions': list([
+      dict({
+        'invocation_plan': 'click_command',
+        'kind': 'cli_command',
+        'name': 'click_cmd',
+      }),
+      dict({
+        'invocation_plan': 'typer_command',
+        'kind': 'cli_command',
+        'name': 'typer_cmd',
+      }),
+      dict({
+        'invocation_plan': 'direct_call',
+        'kind': 'entrypoint',
+        'name': 'main',
+      }),
+    ]),
+  })
+# ---
+# name: TestAnalyzerSnapshots.test_complex_parameters_analysis
+  dict({
+    'parameters': list([
+      dict({
+        'default_repr': None,
+        'has_default': False,
+        'kind': 'positional_only',
+        'name': 'pos_only',
+        'required': True,
+      }),
+      dict({
+        'default_repr': None,
+        'has_default': False,
+        'kind': 'positional_or_keyword',
+        'name': 'regular',
+        'required': True,
+      }),
+      dict({
+        'default_repr': "'default'",
+        'has_default': True,
+        'kind': 'positional_or_keyword',
+        'name': 'with_default',
+        'required': False,
+      }),
+      dict({
+        'default_repr': None,
+        'has_default': False,
+        'kind': 'var_positional',
+        'name': 'args',
+        'required': False,
+      }),
+      dict({
+        'default_repr': None,
+        'has_default': False,
+        'kind': 'keyword_only',
+        'name': 'kw_only',
+        'required': True,
+      }),
+      dict({
+        'default_repr': '42',
+        'has_default': True,
+        'kind': 'keyword_only',
+        'name': 'kw_with_default',
+        'required': False,
+      }),
+      dict({
+        'default_repr': None,
+        'has_default': False,
+        'kind': 'var_keyword',
+        'name': 'kwargs',
+        'required': False,
+      }),
+    ]),
+  })
+# ---
+# name: TestAnalyzerSnapshots.test_simple_function_analysis
+  dict({
+    'actions': list([
+      dict({
+        'has_docstring': True,
+        'kind': 'function',
+        'name': 'greet',
+        'parameters': list([
+          dict({
+            'annotation': 'str',
+            'has_default': False,
+            'kind': 'positional_or_keyword',
+            'name': 'name',
+            'required': True,
+          }),
+          dict({
+            'annotation': 'str',
+            'has_default': True,
+            'kind': 'positional_or_keyword',
+            'name': 'greeting',
+            'required': False,
+          }),
+        ]),
+        'return_annotation': 'str',
+      }),
+    ]),
+    'module_count': 1,
+  })
+# ---
+# name: TestInspectParametersSnapshots.test_mixed_parameters_inspection
+  dict({
+    'count': dict({
+      'options': list([
+      ]),
+      'validation_max': 999999,
+      'validation_min': -999999,
+      'widget': 'spin_box',
+    }),
+    'data': dict({
+      'options': list([
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'json_editor',
+    }),
+    'enabled': dict({
+      'options': list([
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'check_box',
+    }),
+    'items': dict({
+      'options': list([
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'plain_text_edit',
+    }),
+    'mode': dict({
+      'options': list([
+        'fast',
+        'slow',
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'combo_box',
+    }),
+    'name': dict({
+      'options': list([
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'line_edit',
+    }),
+    'optional_val': dict({
+      'options': list([
+      ]),
+      'validation_max': 999999,
+      'validation_min': -999999,
+      'widget': 'spin_box',
+    }),
+    'path': dict({
+      'options': list([
+      ]),
+      'validation_max': None,
+      'validation_min': None,
+      'widget': 'file_picker',
+    }),
+  })
+# ---
+# name: TestInspectorSnapshots.test_basic_type_parsing
+  dict({
+    'Any': dict({
+      'category': 'any',
+      'is_optional': False,
+      'widget': 'json_editor',
+    }),
+    'Path': dict({
+      'category': 'path',
+      'is_optional': False,
+      'widget': 'file_picker',
+    }),
+    'bool': dict({
+      'category': 'boolean',
+      'is_optional': False,
+      'widget': 'check_box',
+    }),
+    'float': dict({
+      'category': 'float',
+      'is_optional': False,
+      'widget': 'double_spin_box',
+    }),
+    'int': dict({
+      'category': 'integer',
+      'is_optional': False,
+      'widget': 'spin_box',
+    }),
+    'str': dict({
+      'category': 'string',
+      'is_optional': False,
+      'widget': 'line_edit',
+    }),
+  })
+# ---
+# name: TestInspectorSnapshots.test_container_type_parsing
+  dict({
+    'Dict[str, int]': dict({
+      'category': 'dict',
+      'has_inner_type': False,
+      'widget': 'json_editor',
+    }),
+    'List[int]': dict({
+      'category': 'list',
+      'has_inner_type': True,
+      'widget': 'plain_text_edit',
+    }),
+    'Tuple[str, int]': dict({
+      'category': 'list',
+      'has_inner_type': True,
+      'widget': 'plain_text_edit',
+    }),
+    'dict': dict({
+      'category': 'dict',
+      'has_inner_type': False,
+      'widget': 'json_editor',
+    }),
+    'list[str]': dict({
+      'category': 'list',
+      'has_inner_type': True,
+      'widget': 'plain_text_edit',
+    }),
+  })
+# ---
+# name: TestInspectorSnapshots.test_datetime_type_parsing
+  dict({
+    'Decimal': dict({
+      'category': 'decimal',
+      'widget': 'line_edit',
+    }),
+    'date': dict({
+      'category': 'date',
+      'widget': 'date_edit',
+    }),
+    'datetime': dict({
+      'category': 'datetime',
+      'widget': 'datetime_edit',
+    }),
+    'time': dict({
+      'category': 'time',
+      'widget': 'time_edit',
+    }),
+  })
+# ---
+# name: TestInspectorSnapshots.test_literal_type_parsing
+  dict({
+    'Literal["a", "b", "c"]': dict({
+      'category': 'literal',
+      'options': list([
+        'a',
+        'b',
+        'c',
+      ]),
+      'widget': 'combo_box',
+    }),
+    'Literal["on", "off"]': dict({
+      'category': 'literal',
+      'options': list([
+        'on',
+        'off',
+      ]),
+      'widget': 'combo_box',
+    }),
+    'Literal[1, 2, 3]': dict({
+      'category': 'literal',
+      'options': list([
+        '1',
+        '2',
+        '3',
+      ]),
+      'widget': 'combo_box',
+    }),
+  })
+# ---
+# name: TestInspectorSnapshots.test_optional_type_parsing
+  dict({
+    'None | float': dict({
+      'category': 'float',
+      'is_optional': True,
+      'widget': 'double_spin_box',
+    }),
+    'Optional[int]': dict({
+      'category': 'integer',
+      'is_optional': True,
+      'widget': 'spin_box',
+    }),
+    'Optional[str]': dict({
+      'category': 'string',
+      'is_optional': True,
+      'widget': 'line_edit',
+    }),
+    'Union[int, None]': dict({
+      'category': 'integer',
+      'is_optional': True,
+      'widget': 'spin_box',
+    }),
+    'str | None': dict({
+      'category': 'string',
+      'is_optional': True,
+      'widget': 'line_edit',
+    }),
+  })
+# ---
