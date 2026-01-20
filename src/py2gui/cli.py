@@ -1,4 +1,4 @@
-"""CLI interface for py2gui - Python to GUI generator."""
+"""CLI interface for mkgui - make GUI from Python code."""
 
 import json
 from pathlib import Path
@@ -15,8 +15,8 @@ from .generator import GeneratorConfig, ScaffoldMode, SourceMode, generate_proje
 from .models import ActionKind, AnalysisMode
 
 app = typer.Typer(
-    name="py2gui",
-    help="Transform Python code into PyQt6 GUI applications.",
+    name="mkgui",
+    help="Generate PyQt6 GUI scaffolding from Python code.",
     no_args_is_help=True,
 )
 
@@ -190,7 +190,7 @@ def _print_analysis_result(result) -> None:
         f"[bold]Analysis Result[/bold]\n"
         f"Mode: {result.analysis_mode.value}\n"
         f"Project: {result.project_root}",
-        title="py2gui",
+        title="mkgui",
     ))
 
     if not result.modules:
@@ -277,7 +277,7 @@ def _print_analysis_result(result) -> None:
 @app.command("version")
 def version_command() -> None:
     """Show version information."""
-    console.print(f"py2gui version {__version__}")
+    console.print(f"mkgui version {__version__}")
 
 
 def main() -> None:

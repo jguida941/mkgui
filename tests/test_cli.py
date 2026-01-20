@@ -40,7 +40,7 @@ class TestVersionCommand:
         """Should output version string."""
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "py2gui version" in result.stdout
+        assert "mkgui version" in result.stdout
         assert "0.1.0" in result.stdout
 
 

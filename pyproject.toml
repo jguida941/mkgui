@@ -43,7 +43,7 @@ dev = [
 ]
 
 [project.scripts]
-py2gui = "py2gui.cli:app"
+mkgui = "py2gui.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]

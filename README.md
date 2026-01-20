@@ -92,13 +92,13 @@ pyqt6-gen analyze ./my_code/ --output ./my-pyqt-app
 $ pyqt6-gen analyze ./my_contacts_app/
 
 ╭─────────────── Analysis Results ───────────────╮
-│ 📁 Found 3 Python files                        │
-│ 📊 Detected patterns:                          │
-│    • Database: sqlite3                         │
-│    • Dataclasses: Contact (4 fields)           │
-│    • JSON file operations                      │
+│   Found 3 Python files                         │
+│   Detected patterns:                           │
+│   • Database: sqlite3                          │
+│   • Dataclasses: Contact (4 fields)            │
+│   • JSON file operations                       │
 │                                                │
-│ 🎯 Recommended: CRUD App with SQLite           │
+│   Recommended: CRUD App with SQLite            │
 ╰────────────────────────────────────────────────╯
 
 ? Accept this scaffold? [Y/n/customize]
