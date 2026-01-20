@@ -7,6 +7,7 @@ This module generates the output artifacts from an AnalysisResult:
 - Source copying: Vendor mode copies source files to output
 """
 
+import fnmatch
 import hashlib
 import json
 import shutil
@@ -15,6 +16,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from .analyzer import IGNORE_DIR_PATTERNS, IGNORE_FILE_PATTERNS
 from .models import AnalysisResult
 
 
@@ -165,12 +167,14 @@ if _src_dir.exists():
             source_dir = source_abs.parent
         else:
             source_dir = source_abs
+        # Use repr() for safe path escaping on all platforms (handles \U, \t, etc.)
+        source_dir_repr = repr(str(source_dir))
         sys_path_setup = f'''
 import sys
 from pathlib import Path
 
 # Add original source to path
-_src_dir = Path("{source_dir}")
+_src_dir = Path({source_dir_repr})
 if _src_dir.exists():
     sys.path.insert(0, str(_src_dir))
 '''
@@ -305,37 +309,27 @@ def _copy_source_files(source_path: Path, dest_dir: Path) -> list[Path]:
         shutil.copy2(source_path, dest_file)
         copied.append(Path(source_path.name))
     else:
-        # Directory - copy tree, excluding common non-source patterns
-        exclude_patterns = {
-            "__pycache__",
-            ".git",
-            ".hg",
-            ".svn",
-            "venv",
-            ".venv",
-            "env",
-            ".env",
-            "node_modules",
-            "build",
-            "dist",
-            "*.egg-info",
-            ".tox",
-            ".pytest_cache",
-            ".mypy_cache",
-            ".ruff_cache",
-        }
+        # Directory - copy tree, using same ignore patterns as analyzer
+        # Add a few more patterns not in analyzer (version control, caches)
+        extra_dir_patterns = [".hg", ".svn", ".ruff_cache"]
+        all_dir_patterns = IGNORE_DIR_PATTERNS + extra_dir_patterns
 
         for item in source_path.rglob("*"):
-            # Skip excluded patterns
+            # Skip excluded directory patterns
             skip = False
             for part in item.parts:
-                if part in exclude_patterns or part.endswith(".egg-info"):
+                if any(fnmatch.fnmatch(part, pat) for pat in all_dir_patterns):
                     skip = True
                     break
             if skip:
                 continue
 
             if item.is_file():
+                # Skip files matching ignore patterns (test files, conftest, etc.)
+                filename = item.name
+                if any(fnmatch.fnmatch(filename, pat) for pat in IGNORE_FILE_PATTERNS):
+                    continue
+
                 rel_path = item.relative_to(source_path)
                 dest_file = dest_dir / rel_path
                 dest_file.parent.mkdir(parents=True, exist_ok=True)

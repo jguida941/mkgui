@@ -85,6 +85,13 @@ def wrap_command(
         console.print(f"[red]Error:[/red] Invalid scaffold mode: {scaffold_mode}")
         raise typer.Exit(1)
 
+    # Warn about standalone mode not being implemented
+    if scaffold_mode == "standalone":
+        console.print(
+            "[yellow]Warning:[/yellow] 'standalone' scaffold mode is not yet implemented. "
+            "Using 'thin' mode instead."
+        )
+
     # Run analysis
     console.print(f"[blue]Analyzing:[/blue] {source}")
     result = analyze_project(source, analysis_mode=mode)

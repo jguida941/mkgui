@@ -288,6 +288,33 @@ class TestWriteLauncher:
         content = launcher_path.read_text()
         assert "from my_runtime import run_app" in content
 
+    def test_path_escaping_for_special_chars(self, tmp_path):
+        """Should properly escape paths with special characters.
+
+        This tests the fix for Windows paths containing sequences like
+        \\Users (which would be interpreted as \\U unicode escape).
+        """
+        # Create a directory with a name that would cause issues if not escaped
+        # Simulating C:\\Users\\test which contains \\U
+        source_path = tmp_path / "Users" / "test_project"
+        source_path.mkdir(parents=True)
+        analysis = AnalysisResult(project_root=str(source_path))
+        config = GeneratorConfig(
+            output_dir=tmp_path / "output",
+            source_path=source_path,
+            source_mode=SourceMode.IMPORT,
+        )
+        launcher_path = tmp_path / "output" / "main.py"
+        launcher_path.parent.mkdir(parents=True, exist_ok=True)
+
+        _write_launcher(analysis, config, launcher_path)
+
+        content = launcher_path.read_text()
+        # The path should be properly escaped (using repr())
+        # This ensures the generated code is valid Python syntax
+        # Compile the generated code to verify it's syntactically valid
+        compile(content, launcher_path, "exec")
+
 
 class TestWriteOverridesTemplate:
     """Tests for _write_overrides_template function."""
@@ -500,6 +527,53 @@ class TestCopySourceFiles:
         copied = _copy_source_files(src_dir, dest_dir)
 
         assert copied[0] == Path("pkg/mod.py")
+
+    def test_excludes_tests_directory(self, tmp_path):
+        """Should exclude tests directory (aligned with analyzer)."""
+        src_dir = tmp_path / "source"
+        src_dir.mkdir()
+        (src_dir / "module.py").write_text("# module")
+        tests = src_dir / "tests"
+        tests.mkdir()
+        (tests / "test_module.py").write_text("# test")
+
+        dest_dir = tmp_path / "dest"
+
+        copied = _copy_source_files(src_dir, dest_dir)
+
+        assert len(copied) == 1
+        assert not (dest_dir / "tests").exists()
+
+    def test_excludes_test_files(self, tmp_path):
+        """Should exclude test_*.py files (aligned with analyzer)."""
+        src_dir = tmp_path / "source"
+        src_dir.mkdir()
+        (src_dir / "module.py").write_text("# module")
+        (src_dir / "test_module.py").write_text("# test")
+        (src_dir / "module_test.py").write_text("# test")
+
+        dest_dir = tmp_path / "dest"
+
+        copied = _copy_source_files(src_dir, dest_dir)
+
+        assert len(copied) == 1
+        assert (dest_dir / "module.py").exists()
+        assert not (dest_dir / "test_module.py").exists()
+        assert not (dest_dir / "module_test.py").exists()
+
+    def test_excludes_conftest(self, tmp_path):
+        """Should exclude conftest.py files."""
+        src_dir = tmp_path / "source"
+        src_dir.mkdir()
+        (src_dir / "module.py").write_text("# module")
+        (src_dir / "conftest.py").write_text("# conftest")
+
+        dest_dir = tmp_path / "dest"
+
+        copied = _copy_source_files(src_dir, dest_dir)
+
+        assert len(copied) == 1
+        assert not (dest_dir / "conftest.py").exists()
 
 
 class TestGenerateProject:

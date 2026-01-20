@@ -184,8 +184,8 @@ class TestWrapCommand:
         # Verify source was copied
         assert (output_dir / "original_src").exists()
 
-    def test_wrap_with_scaffold_mode(self, sample_python_file, tmp_path):
-        """Should accept --scaffold-mode option."""
+    def test_wrap_with_scaffold_mode_standalone_warns(self, sample_python_file, tmp_path):
+        """Should warn that standalone mode is not yet implemented."""
         output_dir = tmp_path / "output"
         result = runner.invoke(app, [
             "wrap",
@@ -194,6 +194,7 @@ class TestWrapCommand:
             "--scaffold-mode", "standalone"
         ])
         assert result.exit_code == 0
+        assert "not yet implemented" in result.stdout.lower()
         assert "generated successfully" in result.stdout.lower()
 
     def test_wrap_invalid_scaffold_mode(self, sample_python_file):
