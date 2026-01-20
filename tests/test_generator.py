@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pyqt6_gen.generator import (
+from py2gui.generator import (
     GeneratorConfig,
     GeneratorResult,
     ScaffoldMode,
@@ -17,7 +17,7 @@ from pyqt6_gen.generator import (
     _write_spec_json,
     generate_project,
 )
-from pyqt6_gen.models import (
+from py2gui.models import (
     ActionKind,
     ActionSpec,
     AnalysisResult,
@@ -46,7 +46,7 @@ class TestGeneratorConfig:
         assert config.scaffold_mode == ScaffoldMode.THIN
         assert config.source_mode == SourceMode.IMPORT
         assert config.create_overrides is True
-        assert config.runtime_package == "pyqt6_wrap_runtime"
+        assert config.runtime_package == "py2gui_runtime"
 
     def test_custom_values(self, tmp_path):
         """Should accept custom values."""

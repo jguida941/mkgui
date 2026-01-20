@@ -1,1 +1,1 @@
-"""Tests for pyqt6_gen."""
+"""Tests for py2gui."""

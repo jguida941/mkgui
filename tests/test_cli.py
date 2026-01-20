@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from pyqt6_gen.cli import _parse_analysis_mode, _print_analysis_result, app
-from pyqt6_gen.models import AnalysisMode, AnalysisResult, ModuleSpec, ActionSpec, ActionKind
+from py2gui.cli import _parse_analysis_mode, _print_analysis_result, app
+from py2gui.models import AnalysisMode, AnalysisResult, ModuleSpec, ActionSpec, ActionKind
 
 
 runner = CliRunner()
@@ -40,7 +40,7 @@ class TestVersionCommand:
         """Should output version string."""
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "pyqt6-wrap version" in result.stdout
+        assert "py2gui version" in result.stdout
         assert "0.1.0" in result.stdout
 
 
@@ -289,7 +289,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_warnings(self, capsys):
         """Should display warnings."""
-        from pyqt6_gen.models import Warning as AnalysisWarning
+        from py2gui.models import Warning as AnalysisWarning
         # Need a module to have content, otherwise it shows "No modules" and exits early
         action = ActionSpec(
             action_id="test.func:123",
@@ -365,7 +365,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_docstring(self, capsys):
         """Should display first line of docstring."""
-        from pyqt6_gen.models import DocSpec
+        from py2gui.models import DocSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,
@@ -390,7 +390,7 @@ class TestPrintAnalysisResult:
 
     def test_result_with_parameters(self, capsys):
         """Should display parameter names."""
-        from pyqt6_gen.models import ParamSpec
+        from py2gui.models import ParamSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,
@@ -419,7 +419,7 @@ class TestPrintAnalysisResult:
 
     def test_result_truncates_many_parameters(self, capsys):
         """Should truncate display when many parameters."""
-        from pyqt6_gen.models import ParamSpec
+        from py2gui.models import ParamSpec
         action = ActionSpec(
             action_id="test.func:1",
             kind=ActionKind.FUNCTION,

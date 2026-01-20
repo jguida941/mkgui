@@ -1,4 +1,4 @@
-"""Property-based tests using Hypothesis for pyqt6_gen."""
+"""Property-based tests using Hypothesis for py2gui."""
 
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given, settings, assume, example
 from hypothesis import strategies as st
 
-from pyqt6_gen.inspector import (
+from py2gui.inspector import (
     TypeCategory,
     TypeInfo,
     _convert_bool,
@@ -20,7 +20,7 @@ from pyqt6_gen.inspector import (
     convert_value,
     parse_type_annotation,
 )
-from pyqt6_gen.models import (
+from py2gui.models import (
     ActionKind,
     ActionSpec,
     AnalysisMode,

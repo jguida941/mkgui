@@ -2,7 +2,7 @@
 
 import pytest
 
-from pyqt6_gen.inspector import (
+from py2gui.inspector import (
     ConversionError,
     ConversionResult,
     TypeCategory,
@@ -23,7 +23,7 @@ from pyqt6_gen.inspector import (
     inspect_parameters,
     parse_type_annotation,
 )
-from pyqt6_gen.models import Annotation, ParamSpec, ParamUI, ParamValidation, WidgetType
+from py2gui.models import Annotation, ParamSpec, ParamUI, ParamValidation, WidgetType
 
 
 class TestParseBasicTypes:

@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for pyqt6_gen tests."""
+"""Shared pytest fixtures for py2gui tests."""
 
 import tempfile
 from pathlib import Path

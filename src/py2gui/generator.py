@@ -38,7 +38,7 @@ class GeneratorConfig:
     scaffold_mode: ScaffoldMode = ScaffoldMode.THIN
     source_mode: SourceMode = SourceMode.IMPORT
     create_overrides: bool = True
-    runtime_package: str = "pyqt6_wrap_runtime"
+    runtime_package: str = "py2gui_runtime"
 
 
 @dataclass

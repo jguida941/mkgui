@@ -1,4 +1,4 @@
-"""Snapshot/regression tests using syrupy for pyqt6_gen.
+"""Snapshot/regression tests using syrupy for py2gui.
 
 These tests capture the output of analysis operations and compare against
 stored snapshots. If the output changes, the test fails, alerting us to
@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from pyqt6_gen.analyzer import analyze_project
-from pyqt6_gen.inspector import parse_type_annotation, inspect_parameters
-from pyqt6_gen.models import Annotation, ParamSpec
+from py2gui.analyzer import analyze_project
+from py2gui.inspector import parse_type_annotation, inspect_parameters
+from py2gui.models import Annotation, ParamSpec
 
 
 class TestAnalyzerSnapshots:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from pyqt6_gen.analyzer import (
+from py2gui.analyzer import (
     ASTAnalyzer,
     ENTRYPOINT_NAMES,
     IGNORE_DIR_PATTERNS,
@@ -13,7 +13,7 @@ from pyqt6_gen.analyzer import (
     _matches_pattern,
     analyze_project,
 )
-from pyqt6_gen.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind
+from py2gui.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind
 
 
 class TestMatchesPattern:

@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from pyqt6_gen.models import (
+from py2gui.models import (
     ActionKind,
     ActionSpec,
     AnalysisMode,

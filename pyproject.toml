@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyqt6-boilerplate-gen"
+name = "py2gui"
 version = "0.1.0"
-description = "A smart CLI tool that scaffolds PyQt6 applications through multiple modes: analyze, wizard, and spec file"
+description = "Transform Python code into PyQt6 GUI applications automatically"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
     "Framework :: Pytest",
 ]
-keywords = ["pyqt6", "qt", "gui", "boilerplate", "generator", "cli", "scaffold"]
+keywords = ["pyqt6", "qt", "gui", "generator", "cli", "python", "wrapper", "automation"]
 dependencies = [
     "typer>=0.9.0,<0.16.0",
     "click>=8.0.0,<8.2.0",
@@ -43,14 +43,13 @@ dev = [
 ]
 
 [project.scripts]
-pyqt6-gen = "pyqt6_gen.cli:app"
-pyqt6-wrap = "pyqt6_gen.cli:app"
+py2gui = "py2gui.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-pyqt6_gen = ["templates/**/*"]
+py2gui = ["templates/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -61,7 +60,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["src/pyqt6_gen"]
+source = ["src/py2gui"]
 branch = true
 omit = ["*/tests/*"]
 
@@ -75,6 +74,6 @@ fail_under = 90
 show_missing = true
 
 [tool.mutmut]
-paths_to_mutate = "src/pyqt6_gen/"
+paths_to_mutate = "src/py2gui/"
 tests_dir = "tests/"
 runner = "python -m pytest -x --tb=no -q"

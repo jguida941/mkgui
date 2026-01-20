@@ -1,4 +1,4 @@
-"""CLI interface for the PyQt6 GUI wrapper generator."""
+"""CLI interface for py2gui - Python to GUI generator."""
 
 import json
 from pathlib import Path
@@ -15,8 +15,8 @@ from .generator import GeneratorConfig, ScaffoldMode, SourceMode, generate_proje
 from .models import ActionKind, AnalysisMode
 
 app = typer.Typer(
-    name="pyqt6-wrap",
-    help="Generate PyQt6 GUI wrappers for existing Python code.",
+    name="py2gui",
+    help="Transform Python code into PyQt6 GUI applications.",
     no_args_is_help=True,
 )
 
@@ -182,7 +182,7 @@ def _print_analysis_result(result) -> None:
         f"[bold]Analysis Result[/bold]\n"
         f"Mode: {result.analysis_mode.value}\n"
         f"Project: {result.project_root}",
-        title="pyqt6-wrap",
+        title="py2gui",
     ))
 
     if not result.modules:
@@ -269,7 +269,7 @@ def _print_analysis_result(result) -> None:
 @app.command("version")
 def version_command() -> None:
     """Show version information."""
-    console.print(f"pyqt6-wrap version {__version__}")
+    console.print(f"py2gui version {__version__}")
 
 
 def main() -> None:
