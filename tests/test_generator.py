@@ -575,6 +575,49 @@ class TestCopySourceFiles:
         assert len(copied) == 1
         assert not (dest_dir / "conftest.py").exists()
 
+    def test_excludes_dotfiles_and_dotdirs(self, tmp_path):
+        """Should exclude dotfiles and dotdirs like .vscode, .idea, .env."""
+        src_dir = tmp_path / "source"
+        src_dir.mkdir()
+        (src_dir / "module.py").write_text("# module")
+        (src_dir / ".env").write_text("SECRET=value")
+        (src_dir / ".gitignore").write_text("*.pyc")
+        vscode = src_dir / ".vscode"
+        vscode.mkdir()
+        (vscode / "settings.json").write_text("{}")
+
+        dest_dir = tmp_path / "dest"
+
+        copied = _copy_source_files(src_dir, dest_dir)
+
+        assert len(copied) == 1
+        assert (dest_dir / "module.py").exists()
+        assert not (dest_dir / ".env").exists()
+        assert not (dest_dir / ".gitignore").exists()
+        assert not (dest_dir / ".vscode").exists()
+
+    def test_uses_relative_paths_for_pattern_matching(self, tmp_path):
+        """Should use relative paths for pattern matching.
+
+        This ensures that a source directory like /Users/test/project
+        doesn't get all files excluded because 'test' matches ignore patterns.
+        """
+        # Create source in a directory named 'test' (which is an ignore pattern)
+        src_dir = tmp_path / "test" / "myproject"
+        src_dir.mkdir(parents=True)
+        (src_dir / "module.py").write_text("# module")
+        (src_dir / "utils.py").write_text("# utils")
+
+        dest_dir = tmp_path / "dest"
+
+        copied = _copy_source_files(src_dir, dest_dir)
+
+        # Files should be copied because 'test' is in the absolute path,
+        # not in the relative path from source_path
+        assert len(copied) == 2
+        assert (dest_dir / "module.py").exists()
+        assert (dest_dir / "utils.py").exists()
+
 
 class TestGenerateProject:
     """Tests for generate_project function."""

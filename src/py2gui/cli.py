@@ -85,12 +85,13 @@ def wrap_command(
         console.print(f"[red]Error:[/red] Invalid scaffold mode: {scaffold_mode}")
         raise typer.Exit(1)
 
-    # Warn about standalone mode not being implemented
+    # Warn about standalone mode not being implemented and force thin mode
     if scaffold_mode == "standalone":
         console.print(
             "[yellow]Warning:[/yellow] 'standalone' scaffold mode is not yet implemented. "
             "Using 'thin' mode instead."
         )
+        scaffold_mode = "thin"  # Force thin until standalone is implemented
 
     # Run analysis
     console.print(f"[blue]Analyzing:[/blue] {source}")

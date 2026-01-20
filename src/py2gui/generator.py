@@ -315,9 +315,17 @@ def _copy_source_files(source_path: Path, dest_dir: Path) -> list[Path]:
         all_dir_patterns = IGNORE_DIR_PATTERNS + extra_dir_patterns
 
         for item in source_path.rglob("*"):
-            # Skip excluded directory patterns
+            # Use relative path for pattern matching (not absolute path)
+            # This prevents false matches when source is in /Users/test/project
+            rel_path = item.relative_to(source_path)
+
+            # Skip excluded directory patterns (check relative path parts only)
             skip = False
-            for part in item.parts:
+            for part in rel_path.parts:
+                # Skip dotfiles/dotdirs (like .vscode, .idea, .env)
+                if part.startswith("."):
+                    skip = True
+                    break
                 if any(fnmatch.fnmatch(part, pat) for pat in all_dir_patterns):
                     skip = True
                     break
@@ -327,10 +335,12 @@ def _copy_source_files(source_path: Path, dest_dir: Path) -> list[Path]:
             if item.is_file():
                 # Skip files matching ignore patterns (test files, conftest, etc.)
                 filename = item.name
+                # Skip dotfiles
+                if filename.startswith("."):
+                    continue
                 if any(fnmatch.fnmatch(filename, pat) for pat in IGNORE_FILE_PATTERNS):
                     continue
 
-                rel_path = item.relative_to(source_path)
                 dest_file = dest_dir / rel_path
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(item, dest_file)
