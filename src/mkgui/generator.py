@@ -102,6 +102,18 @@ def generate_project(
         except Exception as e:
             errors.append(f"Failed to write overrides.yml: {e}")
 
+    # Copy runtime package for standalone mode
+    if config.scaffold_mode == ScaffoldMode.STANDALONE:
+        if config.runtime_package != "mkgui_runtime":
+            errors.append(
+                "Standalone scaffold mode requires runtime_package to be 'mkgui_runtime'"
+            )
+        else:
+            try:
+                _copy_runtime_package(output_dir)
+            except Exception as e:
+                errors.append(f"Failed to copy runtime package: {e}")
+
     # Copy source files if vendor mode
     if config.source_mode == SourceMode.COPY:
         try:
@@ -254,7 +266,7 @@ def _write_overrides_template(analysis: AnalysisResult, path: Path) -> None:
         lines.append("#     actions:")
 
         for action in module.actions:
-            lines.append(f"#       {action.name}:")
+            lines.append(f"#       \"{action.action_id}\":")
             lines.append("#         hidden: false")
             lines.append("#         display_name: null  # Override display name")
 
@@ -288,6 +300,22 @@ def _write_overrides_template(analysis: AnalysisResult, path: Path) -> None:
 
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+
+
+def _copy_runtime_package(dest_dir: Path) -> Path:
+    """Copy the bundled runtime package into the output directory."""
+    runtime_source = Path(__file__).resolve().parents[1] / "mkgui_runtime"
+    if not runtime_source.exists():
+        raise FileNotFoundError(f"Runtime package not found at {runtime_source}")
+
+    runtime_dest = dest_dir / "mkgui_runtime"
+    shutil.copytree(
+        runtime_source,
+        runtime_dest,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    return runtime_dest
 
 
 def _copy_source_files(source_path: Path, dest_dir: Path) -> list[Path]:

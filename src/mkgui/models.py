@@ -170,6 +170,7 @@ class ModuleSpec:
     display_name: str
     file_path: str | None = None
     import_path: str | None = None
+    module_source_hash: str | None = None
     actions: list[ActionSpec] = field(default_factory=list)
     has_main_block: bool = False
     all_exports: list[str] | None = None

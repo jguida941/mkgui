@@ -1,5 +1,6 @@
 """Comprehensive tests for the AST analyzer."""
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from mkgui.analyzer import (
     _matches_pattern,
     analyze_project,
 )
-from mkgui.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind
+from mkgui.models import ActionKind, AnalysisMode, InvocationPlan, ParamKind, WidgetType
 
 
 class TestMatchesPattern:
@@ -483,6 +484,18 @@ class TestFileDiscovery:
         assert "root" in module_ids
         assert "subdir.nested" in module_ids
 
+    def test_src_directory_import_paths(self, tmp_path: Path):
+        """src/ without __init__ should be treated as a source root."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "scanner.py").write_text("def scan(): pass")
+
+        result = analyze_project(tmp_path)
+
+        module_ids = [m.module_id for m in result.modules]
+        assert "scanner" in module_ids
+        assert "src.scanner" not in module_ids
+
     def test_respects_ignore_patterns(self, sample_project_dir):
         """Should ignore directories matching patterns."""
         result = analyze_project(sample_project_dir)
@@ -513,6 +526,28 @@ class TestSyntaxErrors:
         assert len(result.warnings) == 1
         assert len(result.modules) == 1
         assert result.modules[0].display_name == "working"
+
+
+class TestInputWarnings:
+    """Test detection of input() usage."""
+
+    def test_input_usage_warning(self, tmp_path: Path):
+        """input() calls should generate a warning."""
+        code = '''
+def ask():
+    value = input("Enter value: ")
+    return value
+'''
+        file_path = tmp_path / "interactive.py"
+        file_path.write_text(code)
+
+        result = analyze_project(file_path)
+
+        assert len(result.warnings) == 1
+        warning = result.warnings[0]
+        assert warning.code == "INPUT_USAGE"
+        assert "input()" in warning.message
+        assert warning.line == 3
 
 
 class TestPackageStructure:
@@ -547,6 +582,47 @@ class TestAnalyzeProjectFunction:
         result = analyze_project(tmp_path, analysis_mode=AnalysisMode.INTROSPECT)
 
         assert result.analysis_mode == AnalysisMode.INTROSPECT
+
+
+class TestModuleSourceHash:
+    """Test module source hashing."""
+
+    def test_module_source_hash_stable(self, tmp_path: Path):
+        """Module source hash should be stable for same content."""
+        file_path = tmp_path / "mod.py"
+        file_path.write_text("def func(): pass\n")
+
+        result_a = analyze_project(file_path)
+        result_b = analyze_project(file_path)
+
+        module_a = result_a.modules[0]
+        module_b = result_b.modules[0]
+
+        assert module_a.module_source_hash is not None
+        assert len(module_a.module_source_hash) == 16
+        assert module_a.module_source_hash == module_b.module_source_hash
+
+
+class TestIntrospection:
+    """Test runtime introspection mode."""
+
+    def test_introspect_sets_resolved_annotations(self, tmp_path: Path):
+        """Should populate resolved annotations when introspection succeeds."""
+        code = '''
+def add(a: int, b: int) -> int:
+    return a + b
+'''
+        (tmp_path / "calc.py").write_text(code)
+        result = analyze_project(tmp_path / "calc.py", analysis_mode=AnalysisMode.INTROSPECT)
+
+        action = result.modules[0].actions[0]
+        params = {p.name: p for p in action.parameters}
+
+        assert action.introspection.attempted is True
+        assert action.introspection.success is True
+        assert action.introspection.annotations_resolved is True
+        assert params["a"].annotation.resolved == "int"
+        assert action.returns.annotation.resolved == "int"
 
 
 class TestResultStability:
@@ -632,6 +708,111 @@ def func(x, y=10, /, z=20, *args, kw_only=30, **kwargs):
         assert params["kwargs"].kind == ParamKind.VAR_KEYWORD
 
 
+class TestNonJsonDefaults:
+    """Test non-JSON default literals are handled safely."""
+
+    def test_non_json_defaults_marked_non_literal(self, tmp_path: Path):
+        """Non-JSON defaults should not be treated as JSON literals."""
+        code = '''
+def func(data=b"abc", items={1, 2}, z=1j):
+    pass
+'''
+        (tmp_path / "test.py").write_text(code)
+        result = analyze_project(tmp_path / "test.py")
+
+        action = result.modules[0].actions[0]
+        params = {p.name: p for p in action.parameters}
+
+        assert params["data"].default.present is True
+        assert params["data"].default.is_literal is False
+        assert params["data"].default.literal is None
+
+        assert params["items"].default.present is True
+        assert params["items"].default.is_literal is False
+        assert params["items"].default.literal is None
+
+        assert params["z"].default.present is True
+        assert params["z"].default.is_literal is False
+        assert params["z"].default.literal is None
+
+        json.dumps(result.to_dict())
+
+
+class TestParameterUiMapping:
+    """Test parameter UI mapping is applied during analysis."""
+
+    def test_ui_mapping_applied(self, tmp_path: Path):
+        """Typed parameters should get widget/validation defaults."""
+        code = '''
+def func(count: int, name: str, active: bool, ratio: float, tags: list[str], config: dict):
+    pass
+'''
+        (tmp_path / "test.py").write_text(code)
+        result = analyze_project(tmp_path / "test.py")
+
+        action = result.modules[0].actions[0]
+        params = {p.name: p for p in action.parameters}
+
+        assert params["count"].ui.widget == WidgetType.SPIN_BOX
+        assert params["count"].validation.min == -999999
+        assert params["count"].validation.max == 999999
+        assert params["name"].ui.widget == WidgetType.LINE_EDIT
+        assert params["active"].ui.widget == WidgetType.CHECK_BOX
+        assert params["ratio"].ui.widget == WidgetType.DOUBLE_SPIN_BOX
+        assert params["tags"].ui.widget == WidgetType.PLAIN_TEXT_EDIT
+        assert params["config"].ui.widget == WidgetType.JSON_EDITOR
+
+
+class TestEnumOptionsMapping:
+    """Test enum options are derived from AST."""
+
+    def test_enum_options_applied(self, tmp_path: Path):
+        """Enum members should populate combo box options."""
+        code = '''
+from enum import Enum
+
+class Color(Enum):
+    RED = "red"
+    BLUE = "blue"
+
+def paint(color: Color):
+    pass
+'''
+        (tmp_path / "test.py").write_text(code)
+        result = analyze_project(tmp_path / "test.py")
+
+        action = result.modules[0].actions[0]
+        param = action.parameters[0]
+
+        assert param.ui.widget == WidgetType.COMBO_BOX
+        assert param.ui.options == ["red", "blue"]
+
+
+class TestDataclassMapping:
+    """Test dataclass parameters map to JSON editor."""
+
+    def test_dataclass_param_uses_json_editor(self, tmp_path: Path):
+        """Dataclass-typed parameters should use JSON editor."""
+        code = '''
+from dataclasses import dataclass
+
+@dataclass
+class Settings:
+    name: str
+    count: int = 1
+
+def run(settings: Settings):
+    pass
+'''
+        (tmp_path / "test.py").write_text(code)
+        result = analyze_project(tmp_path / "test.py")
+
+        action = result.modules[0].actions[0]
+        param = action.parameters[0]
+
+        assert param.ui.widget == WidgetType.JSON_EDITOR
+
+
 class TestCLIDecoratorPrecedence:
     """Test CLI decorator detection takes precedence over entrypoint names."""
 
@@ -686,6 +867,35 @@ def cli():
         action = result.modules[0].actions[0]
         assert action.kind == ActionKind.CLI_COMMAND
         assert action.invocation_plan == InvocationPlan.CLI_GENERIC
+
+
+class TestConsoleScripts:
+    """Test console_scripts detection from pyproject.toml."""
+
+    def test_console_script_entrypoint(self, tmp_path: Path):
+        """Matching console_scripts should set invocation plan."""
+        (tmp_path / "pyproject.toml").write_text(
+            """
+[project]
+name = "demo"
+version = "0.1.0"
+
+[project.scripts]
+demo = "app:main"
+"""
+        )
+        (tmp_path / "app.py").write_text(
+            """
+def main():
+    pass
+"""
+        )
+
+        result = analyze_project(tmp_path)
+        action = result.modules[0].actions[0]
+
+        assert action.invocation_plan == InvocationPlan.CONSOLE_SCRIPT_ENTRYPOINT
+        assert "console_script:demo" in action.tags
 
 
 class TestArgparseDetection:

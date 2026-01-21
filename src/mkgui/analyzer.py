@@ -8,11 +8,24 @@ Analyzes Python code without importing it, extracting:
 """
 
 import ast
+import json
 import fnmatch
 import hashlib
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
+try:
+    import tomllib as toml
+except ModuleNotFoundError:
+    try:
+        import tomli as toml
+    except ModuleNotFoundError:
+        toml = None
+
 from . import __version__
+from .inspector import inspect_parameters
 from .models import (
     ActionKind,
     ActionSpec,
@@ -41,6 +54,9 @@ IGNORE_FILE_PATTERNS = [
     "setup.py", "conftest.py", "test_*.py", "*_test.py",
 ]
 
+# Treat a top-level "src" directory without __init__.py as a source root.
+SOURCE_ROOT_DIRS = {"src"}
+
 # Entrypoint function names (used only when no CLI decorator is present)
 ENTRYPOINT_NAMES = {"main", "run", "cli", "start", "execute"}
 
@@ -51,10 +67,21 @@ CLI_TYPER_DECORATORS = {"typer.command", "app.command", "typer.Typer"}
 # Bare decorators that indicate CLI but unknown framework
 CLI_BARE_DECORATORS = {"command", "group", "Typer"}
 
+INTROSPECT_TIMEOUT_SEC = 5
+
 
 def _matches_pattern(name: str, patterns: list[str]) -> bool:
     """Check if name matches any of the fnmatch patterns."""
     return any(fnmatch.fnmatch(name, pattern) for pattern in patterns)
+
+
+def _is_json_serializable(value: object) -> bool:
+    """Check if a value can be serialized to JSON."""
+    try:
+        json.dumps(value)
+    except (TypeError, OverflowError):
+        return False
+    return True
 
 
 class ASTAnalyzer:
@@ -87,6 +114,10 @@ class ASTAnalyzer:
 
         # Sort modules by name for stable ordering
         modules.sort(key=lambda m: m.module_id)
+
+        self._apply_console_script_entrypoints(modules)
+        if self.analysis_mode == AnalysisMode.INTROSPECT:
+            self._introspect_actions(modules)
 
         return AnalysisResult(
             project_root=str(self.project_root),
@@ -125,6 +156,277 @@ class ASTAnalyzer:
 
         return False
 
+    def _find_pyproject(self) -> Path | None:
+        """Locate pyproject.toml relative to the analysis root."""
+        if self.project_root.is_file():
+            candidate = self.project_root.parent / "pyproject.toml"
+        else:
+            candidate = self.project_root / "pyproject.toml"
+        if candidate.exists():
+            return candidate
+        return None
+
+    def _normalize_entrypoint_map(
+        self,
+        value: object,
+        file_path: Path,
+        label: str,
+    ) -> dict[str, str]:
+        """Normalize a TOML entrypoint table into a string-to-string mapping."""
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            self.warnings.append(Warning(
+                code="PYPROJECT_INVALID",
+                message=f"{label} must be a table",
+                file_path=str(file_path),
+            ))
+            return {}
+        result: dict[str, str] = {}
+        for key, target in value.items():
+            if isinstance(key, str) and isinstance(target, str):
+                result[key] = target
+        return result
+
+    def _parse_entrypoint_target(self, target: str) -> str | None:
+        """Parse an entrypoint target into a module.qualname string."""
+        if ":" not in target:
+            return None
+        module, attr = target.split(":", 1)
+        module = module.strip()
+        attr = attr.strip().split()[0]
+        if not module or not attr:
+            return None
+        return f"{module}.{attr}"
+
+    def _load_console_script_targets(self) -> dict[str, str]:
+        """Load console_scripts targets from pyproject.toml."""
+        pyproject_path = self._find_pyproject()
+        if not pyproject_path:
+            return {}
+        if toml is None:
+            self.warnings.append(Warning(
+                code="PYPROJECT_UNAVAILABLE",
+                message="tomllib/tomli not installed; console_scripts not parsed",
+                file_path=str(pyproject_path),
+            ))
+            return {}
+        try:
+            with open(pyproject_path, "rb") as f:
+                data = toml.load(f)
+        except Exception as e:
+            self.warnings.append(Warning(
+                code="PYPROJECT_PARSE_ERROR",
+                message=f"Failed to parse pyproject.toml: {e}",
+                file_path=str(pyproject_path),
+            ))
+            return {}
+
+        project = data.get("project")
+        if not isinstance(project, dict):
+            return {}
+
+        scripts = self._normalize_entrypoint_map(
+            project.get("scripts"),
+            pyproject_path,
+            "project.scripts",
+        )
+
+        entry_points = project.get("entry-points")
+        if entry_points is None:
+            entry_points = project.get("entry_points")
+        console_scripts = {}
+        if isinstance(entry_points, dict):
+            console_scripts = self._normalize_entrypoint_map(
+                entry_points.get("console_scripts"),
+                pyproject_path,
+                "project.entry-points.console_scripts",
+            )
+
+        targets: dict[str, str] = {}
+        for name, target in {**scripts, **console_scripts}.items():
+            qualname = self._parse_entrypoint_target(target)
+            if qualname:
+                targets[name] = qualname
+
+        return targets
+
+    def _apply_console_script_entrypoints(self, modules: list[ModuleSpec]) -> None:
+        """Apply console_scripts invocation plans to matching actions."""
+        targets = self._load_console_script_targets()
+        if not targets:
+            return
+
+        target_to_names: dict[str, list[str]] = {}
+        for name, qualname in targets.items():
+            target_to_names.setdefault(qualname, []).append(name)
+
+        for module in modules:
+            for action in module.actions:
+                names = target_to_names.get(action.qualname)
+                if not names:
+                    continue
+                if action.invocation_plan == InvocationPlan.DIRECT_CALL:
+                    action.invocation_plan = InvocationPlan.CONSOLE_SCRIPT_ENTRYPOINT
+                for script_name in names:
+                    tag = f"console_script:{script_name}"
+                    if tag not in action.tags:
+                        action.tags.append(tag)
+
+    def _introspect_actions(self, modules: list[ModuleSpec]) -> None:
+        """Run runtime introspection in a subprocess and update action metadata."""
+        payload_actions: list[dict[str, str]] = []
+        for module in modules:
+            for action in module.actions:
+                attr_path = action.qualname
+                prefix = f"{module.module_id}."
+                if action.qualname.startswith(prefix):
+                    attr_path = action.qualname[len(prefix):]
+                payload_actions.append({
+                    "action_id": action.action_id,
+                    "module_id": module.module_id,
+                    "attr_path": attr_path,
+                })
+
+        if not payload_actions:
+            return
+
+        results, error = self._run_introspection(payload_actions)
+        if error:
+            for module in modules:
+                for action in module.actions:
+                    action.introspection.attempted = True
+                    action.introspection.success = False
+                    action.introspection.error = error
+            return
+
+        for module in modules:
+            for action in module.actions:
+                action.introspection.attempted = True
+                info = results.get(action.action_id)
+                if not info:
+                    action.introspection.success = False
+                    action.introspection.error = "Introspection returned no data"
+                    continue
+                if not info.get("success"):
+                    action.introspection.success = False
+                    action.introspection.error = info.get("error")
+                    continue
+
+                action.introspection.success = True
+                resolved = False
+                params_info = {p["name"]: p.get("annotation") for p in info.get("parameters", [])}
+                for param in action.parameters:
+                    annotation = params_info.get(param.name)
+                    if annotation:
+                        param.annotation.resolved = annotation
+                        resolved = True
+
+                return_annotation = info.get("return_annotation")
+                if return_annotation:
+                    action.returns.annotation.resolved = return_annotation
+                    resolved = True
+
+                action.introspection.annotations_resolved = resolved
+
+    def _run_introspection(
+        self,
+        actions: list[dict[str, str]],
+    ) -> tuple[dict[str, dict[str, object]], str | None]:
+        """Run introspection subprocess and return parsed results or error."""
+        if not sys.executable:
+            return {}, "Python executable not available for introspection"
+
+        payload = {
+            "project_root": str(self.project_root),
+            "project_root_is_file": self.project_root.is_file(),
+            "actions": actions,
+        }
+
+        script = textwrap.dedent(
+            """
+            import importlib
+            import inspect
+            import json
+            import sys
+            from pathlib import Path
+
+            def format_annotation(annotation):
+                if annotation is inspect._empty:
+                    return None
+                try:
+                    return inspect.formatannotation(annotation)
+                except Exception:
+                    return repr(annotation)
+
+            def main():
+                payload = json.load(sys.stdin)
+                project_root = payload.get("project_root")
+                is_file = payload.get("project_root_is_file")
+                if is_file:
+                    sys.path.insert(0, str(Path(project_root).parent))
+                else:
+                    sys.path.insert(0, project_root)
+
+                results = {}
+                for action in payload.get("actions", []):
+                    action_id = action.get("action_id")
+                    module_id = action.get("module_id")
+                    attr_path = action.get("attr_path") or ""
+                    try:
+                        module = importlib.import_module(module_id)
+                        obj = module
+                        for part in attr_path.split("."):
+                            if part:
+                                obj = getattr(obj, part)
+                        sig = inspect.signature(obj)
+                        params = []
+                        for name, param in sig.parameters.items():
+                            params.append({
+                                "name": name,
+                                "annotation": format_annotation(param.annotation),
+                            })
+                        results[action_id] = {
+                            "success": True,
+                            "parameters": params,
+                            "return_annotation": format_annotation(sig.return_annotation),
+                        }
+                    except Exception as exc:
+                        results[action_id] = {
+                            "success": False,
+                            "error": f\"{type(exc).__name__}: {exc}\",
+                        }
+                json.dump(results, sys.stdout)
+
+            if __name__ == "__main__":
+                main()
+            """
+        )
+
+        try:
+            completed = subprocess.run(
+                [sys.executable, "-c", script],
+                input=json.dumps(payload),
+                capture_output=True,
+                text=True,
+                timeout=INTROSPECT_TIMEOUT_SEC,
+            )
+        except subprocess.TimeoutExpired:
+            return {}, f"Introspection timed out after {INTROSPECT_TIMEOUT_SEC}s"
+        except Exception as e:
+            return {}, f"Introspection failed to start: {e}"
+
+        if completed.returncode != 0:
+            stderr = completed.stderr.strip()
+            return {}, stderr or "Introspection subprocess failed"
+
+        try:
+            data = json.loads(completed.stdout or "{}")
+        except json.JSONDecodeError as e:
+            return {}, f"Invalid introspection output: {e}"
+
+        return data, None
+
     def _analyze_file(self, file_path: Path) -> ModuleSpec | None:
         """Analyze a single Python file."""
         try:
@@ -136,6 +438,8 @@ class ASTAnalyzer:
                 file_path=str(file_path),
             ))
             return None
+
+        module_source_hash = hashlib.sha256(source.encode()).hexdigest()[:16]
 
         try:
             tree = ast.parse(source, filename=str(file_path))
@@ -149,10 +453,23 @@ class ASTAnalyzer:
             return None
 
         # Calculate module ID and import path
-        try:
-            rel_path = file_path.relative_to(self.project_root)
-        except ValueError:
-            rel_path = file_path
+        if self.project_root.is_file():
+            rel_path = Path(file_path.name)
+        else:
+            try:
+                rel_path = file_path.relative_to(self.project_root)
+            except ValueError:
+                rel_path = file_path
+
+        if not self.project_root.is_file() and rel_path.parts:
+            top_level = rel_path.parts[0]
+            if top_level in SOURCE_ROOT_DIRS:
+                top_path = self.project_root / top_level
+                if top_path.is_dir() and not (top_path / "__init__.py").exists():
+                    if rel_path.is_absolute():
+                        rel_path = rel_path.relative_to(top_path)
+                    else:
+                        rel_path = Path(*rel_path.parts[1:]) if len(rel_path.parts) > 1 else Path(rel_path.name)
 
         module_id = str(rel_path).replace("/", ".").replace("\\", ".")[:-3]
         if module_id.endswith(".__init__"):
@@ -162,9 +479,20 @@ class ASTAnalyzer:
         all_exports = self._extract_all(tree)
         has_main_block = self._has_main_block(tree)
         side_effect_risk = self._detect_side_effects(tree)
+        input_lines = self._find_input_calls(tree)
+        for line in input_lines:
+            self.warnings.append(Warning(
+                code="INPUT_USAGE",
+                message="input() detected; GUI execution will not provide stdin",
+                file_path=str(file_path),
+                line=line,
+            ))
+
+        enum_options = self._collect_enum_definitions(tree)
+        dataclass_names = self._collect_dataclass_names(tree)
 
         # Extract actions (functions, classes, entrypoints)
-        actions = self._extract_actions(tree, module_id)
+        actions = self._extract_actions(tree, module_id, enum_options, dataclass_names)
 
         # If __all__ is defined, filter to only exported names
         # For class methods, keep them if their parent class is in __all__
@@ -179,11 +507,73 @@ class ASTAnalyzer:
             display_name=file_path.stem,
             file_path=str(file_path),
             import_path=module_id,
+            module_source_hash=module_source_hash,
             actions=actions,
             has_main_block=has_main_block,
             all_exports=all_exports,
             side_effect_risk=side_effect_risk,
         )
+
+    def _is_enum_class(self, node: ast.ClassDef) -> bool:
+        """Check if a class inherits from Enum/IntEnum/StrEnum."""
+        for base in node.bases:
+            if isinstance(base, ast.Name):
+                name = base.id
+            elif isinstance(base, ast.Attribute):
+                name = base.attr
+            else:
+                continue
+            if name.endswith("Enum"):
+                return True
+        return False
+
+    def _collect_enum_definitions(self, tree: ast.Module) -> dict[str, list[str]]:
+        """Collect enum class members defined at module scope."""
+        enums: dict[str, list[str]] = {}
+        for node in ast.iter_child_nodes(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            if not self._is_enum_class(node):
+                continue
+            members: list[str] = []
+            for item in node.body:
+                if not isinstance(item, ast.Assign):
+                    continue
+                if not item.targets:
+                    continue
+                target = item.targets[0]
+                if not isinstance(target, ast.Name):
+                    continue
+                name = target.id
+                if name.startswith("_"):
+                    continue
+                value: object | None
+                try:
+                    value = ast.literal_eval(item.value)
+                except (ValueError, TypeError, SyntaxError):
+                    value = None
+                if value is None:
+                    members.append(name)
+                else:
+                    members.append(str(value))
+            if members:
+                enums[node.name] = members
+        return enums
+
+    def _is_dataclass(self, node: ast.ClassDef) -> bool:
+        """Check if a class uses the dataclass decorator."""
+        decorators = self._get_decorator_names(node)
+        return "dataclass" in decorators or "dataclasses.dataclass" in decorators
+
+    def _collect_dataclass_names(self, tree: ast.Module) -> set[str]:
+        """Collect dataclass type names defined at module scope."""
+        names: set[str] = set()
+        for node in ast.iter_child_nodes(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            if self._is_dataclass(node):
+                names.add(node.name)
+        return names
 
     def _extract_all(self, tree: ast.Module) -> list[str] | None:
         """Extract __all__ if defined."""
@@ -258,7 +648,23 @@ class ASTAnalyzer:
 
         return False
 
-    def _extract_actions(self, tree: ast.Module, module_id: str) -> list[ActionSpec]:
+    def _find_input_calls(self, tree: ast.AST) -> list[int]:
+        """Find input() call sites for warnings."""
+        lines: list[int] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                if isinstance(node.func, ast.Name) and node.func.id == "input":
+                    if node.lineno is not None:
+                        lines.append(node.lineno)
+        return lines
+
+    def _extract_actions(
+        self,
+        tree: ast.Module,
+        module_id: str,
+        enum_options: dict[str, list[str]],
+        dataclass_names: set[str],
+    ) -> list[ActionSpec]:
         """Extract all callable actions from the module."""
         actions: list[ActionSpec] = []
 
@@ -267,7 +673,7 @@ class ASTAnalyzer:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if node.name.startswith("_") and node.name != "__init__":
                     continue
-                action = self._analyze_function(node, module_id)
+                action = self._analyze_function(node, module_id, enum_options, dataclass_names)
                 if action:
                     actions.append(action)
 
@@ -275,13 +681,17 @@ class ASTAnalyzer:
             elif isinstance(node, ast.ClassDef):
                 if node.name.startswith("_"):
                     continue
-                class_actions = self._analyze_class(node, module_id)
+                class_actions = self._analyze_class(node, module_id, enum_options, dataclass_names)
                 actions.extend(class_actions)
 
         return actions
 
     def _analyze_function(
-        self, node: ast.FunctionDef | ast.AsyncFunctionDef, module_id: str
+        self,
+        node: ast.FunctionDef | ast.AsyncFunctionDef,
+        module_id: str,
+        enum_options: dict[str, list[str]],
+        dataclass_names: set[str],
     ) -> ActionSpec | None:
         """Analyze a function definition."""
         name = node.name
@@ -325,7 +735,11 @@ class ASTAnalyzer:
                 kind = ActionKind.ENTRYPOINT
 
         # Extract parameters
-        parameters = self._extract_parameters(node.args)
+        parameters = inspect_parameters(
+            self._extract_parameters(node.args),
+            enum_options=enum_options,
+            dataclass_names=dataclass_names,
+        )
 
         # Extract return type
         returns = ReturnSpec()
@@ -355,7 +769,13 @@ class ASTAnalyzer:
             source_line=node.lineno,
         )
 
-    def _analyze_class(self, node: ast.ClassDef, module_id: str) -> list[ActionSpec]:
+    def _analyze_class(
+        self,
+        node: ast.ClassDef,
+        module_id: str,
+        enum_options: dict[str, list[str]],
+        dataclass_names: set[str],
+    ) -> list[ActionSpec]:
         """Analyze a class definition, extracting staticmethods and classmethods."""
         actions: list[ActionSpec] = []
         class_name = node.name
@@ -384,6 +804,11 @@ class ASTAnalyzer:
             params = self._extract_parameters(item.args)
             if kind == ActionKind.CLASSMETHOD and params:
                 params = params[1:]  # Remove 'cls' parameter
+            params = inspect_parameters(
+                params,
+                enum_options=enum_options,
+                dataclass_names=dataclass_names,
+            )
 
             # Extract return type
             returns = ReturnSpec()
@@ -502,11 +927,17 @@ class ASTAnalyzer:
         # Try to evaluate as literal
         try:
             literal_value = ast.literal_eval(node)
+            if _is_json_serializable(literal_value):
+                return DefaultValue(
+                    present=True,
+                    repr=repr_str,
+                    literal=literal_value,
+                    is_literal=True,
+                )
             return DefaultValue(
                 present=True,
                 repr=repr_str,
-                literal=literal_value,
-                is_literal=True,
+                is_literal=False,
             )
         except (ValueError, TypeError, SyntaxError):
             return DefaultValue(

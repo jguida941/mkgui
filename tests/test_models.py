@@ -368,6 +368,7 @@ class TestModuleSpecDataclass:
         assert ms.display_name == "mymodule"
         assert ms.file_path is None
         assert ms.import_path is None
+        assert ms.module_source_hash is None
         assert ms.actions == []
         assert ms.has_main_block is False
         assert ms.all_exports is None

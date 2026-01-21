@@ -381,7 +381,7 @@ class TestWriteOverridesTemplate:
         _write_overrides_template(analysis, overrides_path)
 
         content = overrides_path.read_text()
-        assert "my_function:" in content
+        assert "\"mod.func:abc\"" in content
 
     def test_includes_parameter_examples(self, tmp_path):
         """Should include parameter override examples."""
@@ -416,6 +416,25 @@ class TestWriteOverridesTemplate:
         assert "spin_box" in content
         assert "min: 0" in content
         assert "max: 100" in content
+
+
+class TestGenerateProject:
+    """Tests for generate_project function."""
+
+    def test_standalone_copies_runtime(self, tmp_path):
+        """Standalone mode should bundle the runtime package."""
+        analysis = AnalysisResult(project_root=str(tmp_path))
+        output_dir = tmp_path / "output"
+        config = GeneratorConfig(
+            output_dir=output_dir,
+            source_path=tmp_path,
+            scaffold_mode=ScaffoldMode.STANDALONE,
+        )
+
+        result = generate_project(analysis, config)
+
+        assert result.success is True
+        assert (output_dir / "mkgui_runtime" / "__init__.py").exists()
 
 
 class TestCopySourceFiles:

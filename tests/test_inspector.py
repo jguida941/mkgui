@@ -23,7 +23,7 @@ from mkgui.inspector import (
     inspect_parameters,
     parse_type_annotation,
 )
-from mkgui.models import Annotation, ParamSpec, ParamUI, ParamValidation, WidgetType
+from mkgui.models import Annotation, ParamKind, ParamSpec, ParamUI, ParamValidation, WidgetType
 
 
 class TestParseBasicTypes:
@@ -193,6 +193,21 @@ class TestParseContainerTypes:
         assert info.category == TypeCategory.DICT
         assert info.widget == WidgetType.JSON_EDITOR
 
+    def test_list_bare(self):
+        info = parse_type_annotation("list")
+        assert info.category == TypeCategory.LIST
+        assert info.widget == WidgetType.PLAIN_TEXT_EDIT
+
+    def test_tuple_bare(self):
+        info = parse_type_annotation("tuple")
+        assert info.category == TypeCategory.LIST
+        assert info.widget == WidgetType.PLAIN_TEXT_EDIT
+
+    def test_set(self):
+        info = parse_type_annotation("set[str]")
+        assert info.category == TypeCategory.LIST
+        assert info.widget == WidgetType.PLAIN_TEXT_EDIT
+
 
 class TestParseEnumTypes:
     """Test heuristic enum detection."""
@@ -227,6 +242,25 @@ class TestParseAnnotatedTypes:
         info = parse_type_annotation("Annotated[Optional[str], Description]")
         assert info.category == TypeCategory.STRING
         assert info.is_optional is True
+
+    def test_annotated_widget_override(self):
+        info = parse_type_annotation("Annotated[str, {'widget': 'plain_text_edit'}]")
+        assert info.widget == WidgetType.PLAIN_TEXT_EDIT
+
+    def test_annotated_validation_override(self):
+        info = parse_type_annotation("Annotated[int, {'min': 0, 'max': 10}]")
+        assert info.validation.min == 0
+        assert info.validation.max == 10
+
+    def test_annotated_options_override(self):
+        info = parse_type_annotation("Annotated[str, {'options': ['a', 'b']}]")
+        assert info.widget == WidgetType.COMBO_BOX
+        assert info.options == ["a", "b"]
+
+    def test_annotated_string_metadata(self):
+        info = parse_type_annotation("Annotated[float, 'min=1.5', 'max=9.5']")
+        assert info.validation.min == 1.5
+        assert info.validation.max == 9.5
 
 
 class TestConvertValues:
@@ -833,13 +867,34 @@ class TestInspectParameter:
 
         assert result.ui.widget == WidgetType.LINE_EDIT
 
-    def test_preserves_required_status(self):
-        """Should not change required status for Optional type without default."""
+    def test_optional_allows_empty(self):
+        """Optional types should allow empty input."""
         param = ParamSpec(name="x", required=True, annotation=Annotation(raw="Optional[int]"))
         result = inspect_parameter(param)
 
-        # Still required because no default value
-        assert result.required is True
+        assert result.required is False
+
+    def test_varargs_widget(self):
+        """*args should use multiline input."""
+        param = ParamSpec(
+            name="items",
+            kind=ParamKind.VAR_POSITIONAL,
+            annotation=Annotation(raw="int"),
+        )
+        result = inspect_parameter(param)
+
+        assert result.ui.widget == WidgetType.PLAIN_TEXT_EDIT
+
+    def test_kwargs_widget(self):
+        """**kwargs should use JSON editor."""
+        param = ParamSpec(
+            name="options",
+            kind=ParamKind.VAR_KEYWORD,
+            annotation=Annotation(raw="str"),
+        )
+        result = inspect_parameter(param)
+
+        assert result.ui.widget == WidgetType.JSON_EDITOR
 
 
 class TestInspectParameters:

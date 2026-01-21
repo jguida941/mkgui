@@ -21,10 +21,10 @@ class TestParseAnalysisMode:
         result = _parse_analysis_mode("ast-only")
         assert result == AnalysisMode.AST_ONLY
 
-    def test_introspect_mode_falls_back(self, capsys):
-        """Should fall back to AST_ONLY for 'introspect' with warning."""
+    def test_introspect_mode_returns_introspect(self, capsys):
+        """Should return INTROSPECT for 'introspect' with warning."""
         result = _parse_analysis_mode("introspect")
-        assert result == AnalysisMode.AST_ONLY
+        assert result == AnalysisMode.INTROSPECT
 
     def test_invalid_mode_exits(self):
         """Should exit for invalid mode."""
@@ -184,8 +184,8 @@ class TestWrapCommand:
         # Verify source was copied
         assert (output_dir / "original_src").exists()
 
-    def test_wrap_with_scaffold_mode_standalone_warns(self, sample_python_file, tmp_path):
-        """Should warn that standalone mode is not yet implemented."""
+    def test_wrap_with_scaffold_mode_standalone(self, sample_python_file, tmp_path):
+        """Should generate standalone output with bundled runtime."""
         output_dir = tmp_path / "output"
         result = runner.invoke(app, [
             "wrap",
@@ -194,8 +194,8 @@ class TestWrapCommand:
             "--scaffold-mode", "standalone"
         ])
         assert result.exit_code == 0
-        assert "not yet implemented" in result.stdout.lower()
         assert "generated successfully" in result.stdout.lower()
+        assert (output_dir / "mkgui_runtime" / "__init__.py").exists()
 
     def test_wrap_invalid_scaffold_mode(self, sample_python_file):
         """Should fail for invalid scaffold mode."""

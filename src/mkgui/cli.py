@@ -29,10 +29,10 @@ def _parse_analysis_mode(mode_str: str) -> AnalysisMode:
         return AnalysisMode.AST_ONLY
     elif mode_str == "introspect":
         console.print(
-            "[yellow]Warning:[/yellow] 'introspect' mode not yet implemented, "
-            "falling back to 'ast-only'"
+            "[yellow]Warning:[/yellow] 'introspect' mode imports code in a subprocess. "
+            "Side effects in module top-level code may run."
         )
-        return AnalysisMode.AST_ONLY
+        return AnalysisMode.INTROSPECT
     else:
         console.print(f"[red]Error:[/red] Invalid analysis mode: {mode_str}")
         raise typer.Exit(1)
@@ -84,14 +84,6 @@ def wrap_command(
     if scaffold_mode not in ("thin", "standalone"):
         console.print(f"[red]Error:[/red] Invalid scaffold mode: {scaffold_mode}")
         raise typer.Exit(1)
-
-    # Warn about standalone mode not being implemented and force thin mode
-    if scaffold_mode == "standalone":
-        console.print(
-            "[yellow]Warning:[/yellow] 'standalone' scaffold mode is not yet implemented. "
-            "Using 'thin' mode instead."
-        )
-        scaffold_mode = "thin"  # Force thin until standalone is implemented
 
     # Run analysis
     console.print(f"[blue]Analyzing:[/blue] {source}")
